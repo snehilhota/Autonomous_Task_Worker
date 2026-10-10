@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brew &amp; Co. Dashboard</title>
+  <style>
+    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 1100px; padding: 0 1rem; color: #26332d; }
+    h1, h2 { color: #174b38; } section { margin: 2rem 0; }
+    table { border-collapse: collapse; width: 100%; } th, td { border-bottom: 1px solid #d9e2dc; padding: .55rem; text-align: left; }
+    th { background: #eef4ef; } .alert { color: #8a3b16; font-weight: 600; } .muted { color: #5b6961; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Brew &amp; Co.</h1>
+    <p>Business date: <strong>{{ business_date.strftime('%d-%m-%Y') }}</strong></p>
+  </header>
+
+  {% if setup_error %}
+    <p role="alert">Demo database not found. Run <code>python -m env.db.seed</code> to create it.</p>
+  {% else %}
+    <section>
+      <h2>Low and out of stock</h2>
+      {% if low_items %}
+        <table><thead><tr><th>Item</th><th>SKU</th><th>Level</th><th>Usable</th><th>Incoming</th><th>Effective</th></tr></thead><tbody>
+        {% for item in low_items %}<tr>
+          <td>{{ item.name }}</td><td>{{ item.sku }}</td><td class="alert">{{ item.level }}</td>
+          <td>{{ item.usable }} {{ item.unit }}</td><td>{{ item.incoming }} {{ item.unit }}</td><td>{{ item.effective }} {{ item.unit }}</td>
+        </tr>{% endfor %}
+        </tbody></table>
+      {% else %}<p class="muted">No low-stock items.</p>{% endif %}
+    </section>
+
+    <section>
+      <h2>Expiry alerts</h2>
+      {% if expiry_items %}
+        <table><thead><tr><th>Item</th><th>Expires</th><th>Class</th></tr></thead><tbody>
+        {% for item in expiry_items %}<tr>
+          <td>{{ item.name }}</td><td>{{ item.expiry_date | datetimeformat }}</td><td class="alert">{{ item.expiry }}</td>
+        </tr>{% endfor %}
+        </tbody></table>
+      {% else %}<p class="muted">No expiry alerts.</p>{% endif %}
+    </section>
+
+    <section>
+      <h2>Open purchase orders</h2>
+      {% if open_orders %}
+        <table><thead><tr><th>PO</th><th>SKU</th><th>Quantity</th><th>Status</th><th>Expected delivery</th><th>Delivery check</th></tr></thead><tbody>
+        {% for order in open_orders %}<tr>
+          <td>{{ order.po_number }}</td><td>{{ order.sku }}</td><td>{{ order.quantity }}</td><td>{{ order.status }}</td>
+          <td>{{ order.expected_delivery | datetimeformat }}</td>
+          <td>{% if order.overdue %}<span class="alert">Overdue</span>{% else %}On time{% endif %}</td>
+        </tr>{% endfor %}
+        </tbody></table>
+      {% else %}<p class="muted">No open purchase orders.</p>{% endif %}
+    </section>
+  {% endif %}
+</body>
+</html>

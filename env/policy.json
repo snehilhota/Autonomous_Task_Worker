@@ -1,0 +1,5 @@
+{
+  "open_order_statuses": ["Placed", "Confirmed", "In Transit"],
+  "critical_expiry_max_days": 3,
+  "warning_expiry_max_days": 7
+}
