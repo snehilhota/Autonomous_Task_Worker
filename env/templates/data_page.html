@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brew &amp; Co. — {{ title }}</title>
+  <style>
+    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 1200px; padding: 0 1rem; color: #26332d; }
+    h1, h2 { color: #174b38; } nav a { margin-right: 1rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border-bottom: 1px solid #d9e2dc; padding: .5rem; text-align: left; }
+    th { background: #eef4ef; }
+  </style>
+</head>
+<body>
+  <header><h1>Brew &amp; Co.</h1>
+    <nav aria-label="Business data">
+      <a href="/">Dashboard</a><a href="/inventory">Inventory</a>
+      <a href="/suppliers">Suppliers</a><a href="/purchase-orders">Purchase orders</a>
+      <a href="/new-purchase-order">New purchase order</a>
+    </nav>
+  </header>
+  <main>
+    <h2>{{ title }}</h2>
+    {% if setup_error %}<p role="alert">Demo database not found. Run <code>python -m env.db.seed</code> to create it.</p>
+    {% elif rows %}
+      <table><thead><tr>{% for key in rows[0].keys() %}<th>{{ key.replace('_', ' ') }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in rows %}<tr data-testid="{{ test_id }}">{% for value in row.values() %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    {% else %}<p>No records.</p>{% endif %}
+  </main>
+</body>
+</html>

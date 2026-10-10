@@ -15,6 +15,10 @@
   <header>
     <h1>Brew &amp; Co.</h1>
     <p>Business date: <strong>{{ business_date.strftime('%d-%m-%Y') }}</strong></p>
+    <nav aria-label="Business data">
+      <a href="/inventory">Inventory</a><a href="/suppliers">Suppliers</a>
+      <a href="/purchase-orders">Purchase orders</a><a href="/new-purchase-order">New purchase order</a>
+    </nav>
   </header>
 
   {% if setup_error %}
@@ -55,6 +59,22 @@
         </tbody></table>
       {% else %}<p class="muted">No open purchase orders.</p>{% endif %}
     </section>
+
   {% endif %}
+
+  <section>
+    <h2>Worker activity</h2>
+    {% if events %}
+      <ol>
+      {% for event in events %}<li>
+        <time>{{ event.ts }}</time> — <strong>{{ event.type }}</strong>
+        {% if event.tool %}<span> · {{ event.tool }}</span>{% endif %}
+        {% if event.step is not none %}<span> · step {{ event.step }}</span>{% endif %}
+        {% if event.result %}<span> · {{ event.result.status }}</span>{% endif %}
+        {% if event.args %}<code> · {{ event.args }}</code>{% endif %}
+      </li>{% endfor %}
+      </ol>
+    {% else %}<p class="muted">No worker events yet.</p>{% endif %}
+  </section>
 </body>
 </html>

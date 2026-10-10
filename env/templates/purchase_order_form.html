@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brew &amp; Co. — New purchase order</title>
+  <style>
+    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 800px; padding: 0 1rem; color: #26332d; }
+    h1, h2 { color: #174b38; } nav a { margin-right: 1rem; }
+    label { display: block; margin: 1rem 0 .25rem; } input, select, button { font: inherit; padding: .45rem; }
+    [role="alert"] { color: #8a3b16; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header><h1>Brew &amp; Co.</h1><nav aria-label="Business data">
+    <a href="/">Dashboard</a><a href="/inventory">Inventory</a>
+    <a href="/suppliers">Suppliers</a><a href="/purchase-orders">Purchase orders</a>
+  </nav></header>
+  <main>
+    {% if receipt %}
+      <h2>Purchase order submitted</h2>
+      <p data-testid="po-receipt">{{ receipt }} — Placed</p>
+      <p data-testid="price-estimate">Estimated total: ₹{{ "{:,.0f}".format(estimated_total) }}
+        ({{ quantity }} × ₹{{ unit_price }} per unit)</p>
+      <a href="/purchase-orders">View purchase orders</a>
+    {% else %}
+      <h2>New purchase order</h2>
+      {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+      <form method="post" action="/new-purchase-order" data-testid="purchase-order-form">
+        <label for="supplier_id">Supplier</label>
+        <select id="supplier_id" name="supplier_id" data-testid="supplier-id" required>
+          <option value="">Choose a supplier</option>
+          {% for supplier in suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }} ({{ supplier.status }})</option>{% endfor %}
+        </select>
+        <label for="sku">Item</label>
+        <select id="sku" name="sku" data-testid="sku" required>
+          <option value="">Choose an item</option>
+          {% for item in items %}<option value="{{ item.sku }}">{{ item.name }} ({{ item.sku }})</option>{% endfor %}
+        </select>
+        <label for="quantity">Quantity</label>
+        <input id="quantity" name="quantity" data-testid="quantity" type="number" min="1" step="1" required>
+        <section aria-live="polite" data-testid="price-estimate" id="price-estimate">
+          Select a supplier and item to see the unit price; enter a quantity for the estimated total.
+        </section>
+        <label for="expected_delivery">Expected delivery</label>
+        <input id="expected_delivery" name="expected_delivery" data-testid="expected-delivery" type="date" required>
+        <p><button type="submit" data-testid="submit-order">Submit purchase order</button></p>
+      </form>
+      <script>
+        const supplier = document.querySelector('#supplier_id');
+        const sku = document.querySelector('#sku');
+        const quantity = document.querySelector('#quantity');
+        const estimate = document.querySelector('#price-estimate');
+        const money = value => new Intl.NumberFormat('en-IN').format(value);
+        async function updateEstimate() {
+          if (!supplier.value || !sku.value) {
+            estimate.textContent = 'Select a supplier and item to see the unit price; enter a quantity for the estimated total.';
+            return;
+          }
+          const params = new URLSearchParams({supplier_id: supplier.value, sku: sku.value, quantity: quantity.value});
+          try {
+            const response = await fetch(`/order-estimate?${params}`);
+            const quote = await response.json();
+            if (!response.ok) throw new Error(quote.error);
+            const unit = `Unit price: ₹${money(quote.unit_price_inr)} per unit.`;
+            if (!quote.quantity) {
+              estimate.textContent = `${unit} Enter a quantity to see the estimated total.`;
+            } else {
+              const packNote = quote.pack_valid ? '' : ` Quantity must be a multiple of ${quote.pack_size}.`;
+              estimate.textContent = `${unit} Estimated total: ₹${money(quote.estimated_total_inr)} (${quote.quantity} × ₹${money(quote.unit_price_inr)}).${packNote}`;
+            }
+          } catch (error) {
+            estimate.textContent = error.message;
+          }
+        }
+        supplier.addEventListener('change', updateEstimate);
+        sku.addEventListener('change', updateEstimate);
+        quantity.addEventListener('input', updateEstimate);
+      </script>
+    {% endif %}
+  </main>
+</body>
+</html>
