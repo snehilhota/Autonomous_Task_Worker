@@ -15,7 +15,8 @@ class OrderSubmissionDraft:
     """Trusted submission fields supplied by the deterministic draft store."""
 
     def __init__(self, decision: str, supplier_id: int, sku: str, quantity: int,
-                 expected_delivery: str, unit_price_inr: int, approval_valid: bool = False):
+                 expected_delivery: str, unit_price_inr: int, approval_valid: bool = False,
+                 status: str = "ready"):
         self.decision = decision
         self.supplier_id = supplier_id
         self.sku = sku
@@ -23,6 +24,7 @@ class OrderSubmissionDraft:
         self.expected_delivery = expected_delivery
         self.unit_price_inr = unit_price_inr
         self.approval_valid = approval_valid
+        self.status = status
 
 
 class BrewBrowserTool:
@@ -37,7 +39,8 @@ class BrewBrowserTool:
 
     def __init__(self, base_url: str = "http://127.0.0.1:5000", timeout_ms: int = 4000,
                  evidence_dir: str | Path | None = None,
-                 draft_lookup: Callable[[str], OrderSubmissionDraft | None] | None = None):
+                 draft_lookup: Callable[[str], OrderSubmissionDraft | None] | None = None,
+                 verification_callback: Callable[[str], dict] | None = None):
         parsed = urlparse(base_url)
         if parsed.scheme not in {"http", "https"} or parsed.hostname not in {"127.0.0.1", "localhost"}:
             raise ValueError("browser tool may connect only to a local Brew & Co. server")
@@ -49,6 +52,7 @@ class BrewBrowserTool:
             Path(__file__).resolve().parents[2] / "runs" / "browser_evidence"
         )
         self.draft_lookup = draft_lookup
+        self.verification_callback = verification_callback
 
     def read_dashboard(self) -> ToolResult:
         return self._read_page("dashboard")
@@ -70,6 +74,12 @@ class BrewBrowserTool:
         if draft is None:
             return ToolResult(ToolStatus.ERROR, error_code="draft_not_found",
                               message="No trusted order draft exists with that ID.")
+        if getattr(draft, "status", "ready") == "submitted":
+            return ToolResult(ToolStatus.BLOCKED, error_code="draft_already_submitted",
+                              message="This draft has already created a purchase order.")
+        if getattr(draft, "status", "ready") not in {"ready", "approved"}:
+            return ToolResult(ToolStatus.BLOCKED, error_code="draft_not_ready",
+                              message="This draft is not ready for submission.")
         if draft.decision == "blocked":
             return ToolResult(ToolStatus.BLOCKED, error_code="policy_blocked",
                               message="A blocked draft cannot be submitted.")
@@ -96,6 +106,7 @@ class BrewBrowserTool:
                 browser = playwright.chromium.launch(headless=True, timeout=self.timeout_ms)
                 try:
                     page = browser.new_page()
+                    page.set_default_timeout(self.timeout_ms)
                     self._restrict_routes(page)
                     response = page.goto(f"{self.base_url}/new-purchase-order",
                                          wait_until="domcontentloaded", timeout=self.timeout_ms)
@@ -106,6 +117,10 @@ class BrewBrowserTool:
                     page.locator('[data-testid="sku"]').select_option(draft.sku)
                     page.locator('[data-testid="quantity"]').fill(str(draft.quantity))
                     page.locator('[data-testid="expected-delivery"]').fill(draft.expected_delivery)
+                    if getattr(draft, "draft_id", None) == draft_id:
+                        page.locator('[data-testid="draft-id"]').evaluate(
+                            "(element, value) => { element.value = value; }", draft_id
+                        )
                     expected_total = draft.quantity * draft.unit_price_inr
                     estimate_text = page.locator('[data-testid="price-estimate"]')
                     expected_label = f"Estimated total: ₹{expected_total:,}"
@@ -129,13 +144,25 @@ class BrewBrowserTool:
                                           message="Submission returned without a purchase-order receipt.")
                     po_number = receipt.inner_text().split("—", 1)[0].strip()
                     screenshot = self._save_screenshot(page, "submitted-order")
+                    verification = self.verification_callback(draft_id) if self.verification_callback else None
+                    if verification is not None and verification.get("status") != "verified":
+                        return ToolResult(
+                            ToolStatus.ERROR, error_code="verification_failed",
+                            message="The purchase order was submitted, but independent verification did not pass.",
+                            data={"draft_id": draft_id, "po_number": po_number,
+                                  "verification": verification},
+                            evidence={"url": page.url, "po_number": po_number,
+                                      "screenshot": str(screenshot)},
+                        )
                     return ToolResult(
                         ToolStatus.OK,
                         data={"draft_id": draft_id, "po_number": po_number, "status": "Placed",
                               "supplier_id": draft.supplier_id, "sku": draft.sku,
                               "quantity": draft.quantity, "unit_price_inr": draft.unit_price_inr,
-                              "expected_delivery": draft.expected_delivery},
-                        evidence={"url": page.url, "po_number": po_number, "screenshot": str(screenshot)},
+                              "expected_delivery": draft.expected_delivery,
+                              "verification": verification},
+                        evidence={"url": page.url, "po_number": po_number, "screenshot": str(screenshot),
+                                  "verification": verification},
                     )
                 finally:
                     browser.close()
@@ -169,6 +196,7 @@ class BrewBrowserTool:
                 browser = playwright.chromium.launch(headless=True, timeout=self.timeout_ms)
                 try:
                     page = browser.new_page()
+                    page.set_default_timeout(self.timeout_ms)
                     self._restrict_routes(page)
                     response = page.goto(f"{self.base_url}{path}", wait_until="domcontentloaded",
                                          timeout=self.timeout_ms)

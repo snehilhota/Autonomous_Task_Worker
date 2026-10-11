@@ -1,7 +1,9 @@
 import sqlite3
+from datetime import date
 
 from env.db.seed import reset_database
 from env.server import create_app
+from env.drafts import create_order_draft
 
 
 def test_order_form_submits_a_placed_po_and_shows_receipt(tmp_path, monkeypatch):
@@ -106,3 +108,26 @@ def test_test_fault_hooks_are_off_without_environment_flag(tmp_path, monkeypatch
 
     assert response.status_code == 201
     assert app.config["TEST_FAULTS_ENABLED"] is False
+
+
+def test_order_form_links_a_persistent_draft_and_rejects_a_duplicate(tmp_path, monkeypatch):
+    monkeypatch.setenv("BUSINESS_DATE", "2026-10-12")
+    database = reset_database(tmp_path / "orders.sqlite3")
+    with sqlite3.connect(database) as connection:
+        connection.row_factory = sqlite3.Row
+        draft = create_order_draft(connection, "TEA-ASM", 3, 6, business_date=date(2026, 10, 12))
+    client = create_app(database, tmp_path / "events.jsonl").test_client()
+    form = {"supplier_id": "3", "sku": "TEA-ASM", "quantity": "6",
+            "expected_delivery": "2026-10-14", "draft_id": draft["draft_id"]}
+
+    submitted = client.post("/new-purchase-order", data=form)
+    duplicate = client.post("/new-purchase-order", data=form)
+
+    assert submitted.status_code == 201
+    assert duplicate.status_code == 409
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM purchase_orders").fetchone()[0] == 9
+        assert connection.execute(
+            "SELECT status, submitted_po_number FROM order_drafts WHERE draft_id = ?",
+            (draft["draft_id"],),
+        ).fetchone() == ("submitted", "PO-1009")

@@ -4,13 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Brew &amp; Co. — {{ title }}</title>
-  <style>
-    body { font: 16px/1.45 system-ui, sans-serif; margin: 2rem auto; max-width: 1200px; padding: 0 1rem; color: #26332d; }
-    h1, h2 { color: #174b38; } nav a { margin-right: 1rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border-bottom: 1px solid #d9e2dc; padding: .5rem; text-align: left; }
-    th { background: #eef4ef; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header><h1>Brew &amp; Co.</h1>

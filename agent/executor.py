@@ -23,6 +23,8 @@ def _validate_arguments(parameters: dict[str, Any], args: Any) -> str | None:
         expected_type = properties[name].get("type")
         if expected_type == "string" and not isinstance(value, str):
             return f"{name} must be a string"
+        if expected_type == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
+            return f"{name} must be an integer"
     return None
 
 
@@ -68,7 +70,7 @@ def create_file_executor(file_tool, event_log: EventLog, timeout_seconds: float 
     return ToolExecutor(registry, event_log, timeout_seconds)
 
 
-def create_browser_executor(browser_tool, event_log: EventLog, timeout_seconds: float = 10) -> ToolExecutor:
+def create_browser_executor(browser_tool, event_log: EventLog, timeout_seconds: float = 15) -> ToolExecutor:
     registry = ToolRegistry()
     register_browser_tools(registry, browser_tool)
     return ToolExecutor(registry, event_log, timeout_seconds)

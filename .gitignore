@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+.venv/
 *.sqlite
 *.sqlite3
 *.db

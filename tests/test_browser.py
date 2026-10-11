@@ -1,5 +1,7 @@
 from pathlib import Path
 import sqlite3
+from contextlib import closing
+from datetime import date
 from threading import Thread
 
 import pytest
@@ -12,6 +14,8 @@ from agent.executor import create_browser_executor
 from agent.tools.browser import BrewBrowserTool, OrderSubmissionDraft
 from agent.trace import EventLog
 from env.db.seed import reset_database
+from env.drafts import create_order_draft, get_trusted_submission
+from env.verifier import verify_draft
 from env.server import create_app
 
 
@@ -40,7 +44,7 @@ def test_real_browser_reads_seeded_dashboard(local_brew_server, tmp_path):
     finally:
         executor.close()
 
-    assert result.status == ToolStatus.OK
+    assert result.status == ToolStatus.OK, result.to_dict()
     assert result.data["content_label"] == "UNTRUSTED PAGE CONTENT"
     assert "Full-cream milk" in result.data["content"]
     assert "PO-1007" in result.data["content"]
@@ -99,30 +103,50 @@ def test_order_form_shows_live_price_estimate_in_real_browser(local_brew_server)
             browser.close()
 
 
-def test_authorized_draft_is_submitted_through_real_browser(local_brew_server, tmp_path):
+def test_authorized_draft_is_submitted_through_real_browser(local_brew_server, tmp_path, monkeypatch):
+    monkeypatch.setenv("BUSINESS_DATE", "2026-10-12")
     database = tmp_path / "browser.sqlite3"
-    draft = OrderSubmissionDraft("permitted", 3, "TEA-ASM", 6, "2026-10-14", 520)
+    with closing(sqlite3.connect(database)) as connection:
+        connection.row_factory = sqlite3.Row
+        draft = create_order_draft(connection, "TEA-ASM", 3, 6, business_date=date(2026, 10, 12))
+
+    def lookup_draft(requested_id):
+        with closing(sqlite3.connect(database)) as connection:
+            connection.row_factory = sqlite3.Row
+            return get_trusted_submission(connection, requested_id)
+
+    def verify(requested_id):
+        return verify_draft(database, requested_id, tmp_path / "events.jsonl")
+
     log = EventLog(tmp_path / "events.jsonl")
     executor = create_browser_executor(
         BrewBrowserTool(local_brew_server, evidence_dir=tmp_path / "shots",
-                        draft_lookup=lambda draft_id: draft if draft_id == "tea-draft" else None),
+                        draft_lookup=lambda draft_id: lookup_draft(draft_id)
+                        if draft_id == draft["draft_id"] else None,
+                        verification_callback=verify),
         log,
     )
     try:
-        result = executor.run("submit_purchase_order", {"draft_id": "tea-draft"},
+        result = executor.run("submit_purchase_order", {"draft_id": draft["draft_id"]},
                               run_id="browser-write-test", step=1)
     finally:
         executor.close()
 
-    assert result.status == ToolStatus.OK
+    assert result.status == ToolStatus.OK, result.to_dict()
     assert result.data["po_number"] == "PO-1009"
+    assert result.data["verification"]["status"] == "verified"
     assert Path(result.evidence["screenshot"]).is_file()
     with sqlite3.connect(database) as connection:
         row = connection.execute(
             "SELECT sku, supplier_id, quantity, unit_price_inr, status, expected_delivery "
             "FROM purchase_orders WHERE po_number = 'PO-1009'"
         ).fetchone()
+        submitted_draft = connection.execute(
+            "SELECT status, submitted_po_number FROM order_drafts WHERE draft_id = ?",
+            (draft["draft_id"],),
+        ).fetchone()
     assert row == ("TEA-ASM", 3, 6, 520, "Placed", "2026-10-14")
+    assert submitted_draft == ("submitted", "PO-1009")
 
 
 def test_browser_write_requires_permitted_or_approved_draft():
@@ -131,6 +155,15 @@ def test_browser_write_requires_permitted_or_approved_draft():
 
     assert result.status == ToolStatus.NEEDS_APPROVAL
     assert result.error_code == "approval_required"
+
+
+def test_browser_write_rejects_a_draft_already_marked_submitted():
+    draft = OrderSubmissionDraft("permitted", 3, "TEA-ASM", 6, "2026-10-14", 520,
+                                 status="submitted")
+    result = BrewBrowserTool(draft_lookup=lambda _draft_id: draft).submit_purchase_order("tea-draft")
+
+    assert result.status == ToolStatus.BLOCKED
+    assert result.error_code == "draft_already_submitted"
 
 
 @pytest.mark.parametrize(("fault", "expected_status", "expected_po_count"), [
