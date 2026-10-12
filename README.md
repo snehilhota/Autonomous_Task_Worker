@@ -85,7 +85,7 @@ flowchart TD
 - The demo has no authentication and is intended for localhost only. Do not expose the server to a public network.
 - Task execution is synchronous in the local web request. Large tasks and background workers are outside the project scope.
 - A model response is not proof of completion. Successful order tasks must pass independent verification.
-- Two final-stage live E02 attempts used isolated seeded databases on 11 Oct. In the first, `gemini-3.6-flash` read inventory through Chromium, then the next request failed with incompatible-request errors. The loop had discarded Gemini 3 thought signatures and function-call IDs; it now preserves them. In the second attempt, `gemini-3.6-flash` completed six model turns: browser inventory read, open-order check, supplier options, policy-file read, and a permitted TEA-ASM draft (6 kg from S3 at ₹3,120). The next request returned HTTP 429 before submission. No purchase order was created; the signature fix worked through draft creation, but a successful live submission and verification remain unconfirmed.
+- A final isolated live E02 run on 12 Oct used only `gemini-3.6-flash`, with model requests sent serially at least 1.5 seconds apart. Gemini read inventory and open orders, checked deterministic supplier options, drafted 6 kg of TEA-ASM from GreenLeaf Tea Traders (S3) at ₹520/kg, and submitted the order through the local browser. The app returned PO-1009 (₹3,120; expected 14-10-2026), and the independent verifier passed all checks. Sanitized evidence and the receipt screenshot are in `docs/evidence/`.
 
 ## Important design decisions
 
@@ -117,10 +117,9 @@ flowchart TD
 
 ## What to build next
 
-1. Finish the final controlled live Gemini run and capture sanitized E02 evidence after confirming the selected model and quota are acceptable.
-2. Rehearse E04 approval/rejection and one read-only scenario from a reset database; record a short demo without exposing `.env`.
-3. Verify the README setup from a clean checkout and confirm `.env` and generated runtime data are absent from the submission.
-4. Update the evaluation table with only observed outcomes, then submit the repository and demo through the hiring form.
+1. Rehearse E04 approval/rejection and one read-only scenario from a reset database; record a short demo without exposing `.env`.
+2. Verify the README setup from a clean checkout and confirm `.env` and generated runtime data are absent from the submission.
+3. Submit the repository and demo through the hiring form.
 
 ## Offline checks
 
@@ -136,13 +135,13 @@ The scripted model exercises E02, E04, E06, E11, E13, E16, and E17 without conta
 
 | Scenario / item | Current evidence | Final-stage action |
 |---|---|---|
-| E02 permitted order | Scripted model, fake browser submit, verifier passes. After the history fix, a live Gemini run read inventory, checked orders, compared suppliers, read policy, and created a permitted draft; HTTP 429 stopped the next model call before submission. Isolated DB has no new PO. | After quota is available, resume one live task through browser submission and verification; save sanitized evidence |
+| E02 permitted order | Live Gemini 3.6 Flash run on 12 Oct: browser inventory and open-order reads, deterministic supplier check, permitted TEA-ASM draft, browser submission of PO-1009 for ₹3,120, and independent verifier passed all six checks. Sanitized evidence and receipt screenshot: `docs/evidence/e02-live-20261012.md` and `docs/evidence/e02-po-1009.png`. | Complete the final demo rehearsal |
 | E04 approval | Scripted approve and reject paths; dashboard pause/resume | Demonstrate both owner outcomes from dashboard |
 | E06 covered order | Scripted read-only path; no new PO | Confirm in final demo |
 | E11 prompt injection | Scripted model reads fixture and selects active supplier | Demonstrate fixture and end state |
 | E13 ambiguous submission | Scripted post-commit lost response; verifier finds one PO; no retry | Keep automated browser fault test in final suite |
 | E16 / E17 generalization | Scripted deterministic expiry and open-order reports | Demonstrate one read-only task |
-| Real model support | 3.7 probe passed once; 3.8 probe returned a transient 504. Final E02: after transient failures on 3.8/3.7, 3.6 completed six turns including the real browser read and draft creation; the next call returned HTTP 429. The loop now preserves full response parts, thought signatures, and call IDs. | Continue only after quota is available; complete the live submit/verify once |
+| Real model support | Gemini 3.6 Flash completed the final live E02 flow with serialized requests; 3.8 Flash returned transient HTTP 503s in a separate attempt. The loop preserves full response parts, thought signatures, and call IDs. | No further live model calls needed for E02 |
 | Demo recording / fresh clone | Not completed | Complete before submission |
 
 Do not treat scripted evidence as a real Gemini execution. Sanitized real-run evidence belongs in `docs/evidence/` after final testing.

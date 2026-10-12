@@ -180,7 +180,7 @@ class BrewBrowserTool:
     def _restrict_routes(self, page) -> None:
         allowed_origin = (urlparse(self.base_url).scheme, urlparse(self.base_url).netloc)
         allowed_paths = {path for path, _selector in self.PAGES.values()}
-        allowed_paths.update({"/new-purchase-order", "/order-estimate"})
+        allowed_paths.update({"/new-purchase-order", "/order-estimate", "/static/style.css"})
         def handle(route):
             parsed = urlparse(route.request.url)
             if (parsed.scheme, parsed.netloc) == allowed_origin and parsed.path in allowed_paths:
