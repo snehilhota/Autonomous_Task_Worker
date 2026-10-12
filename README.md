@@ -105,7 +105,7 @@ flowchart TD
 - Seed data and documents are simulated business data from the project manual. Supplier notes are untrusted input, while deterministic policy and database status control decisions.
 - The only consequential business write is placing a purchase order. Alerts and read-only tasks never write business state.
 - A person is available to respond to clarification and approval prompts during a task.
-- The student supplies and protects their own Gemini API key. Live model calls are intentionally deferred until final testing.
+- The student supplies and protects their own Gemini API key. Live model calls use quota and are performed only for explicitly authorized final checks; offline scenarios use scripted models.
 
 ## Technologies and external components
 
@@ -117,9 +117,8 @@ flowchart TD
 
 ## What to build next
 
-1. Rehearse E04 approval/rejection and one read-only scenario from a reset database; record a short demo without exposing `.env`.
-2. Verify the README setup from a clean checkout and confirm `.env` and generated runtime data are absent from the submission.
-3. Submit the repository and demo through the hiring form.
+1. Record a short demo of E04 approval/rejection and a read-only scenario without exposing `.env`.
+2. Submit the repository and demo video through the hiring form. The live demo link is optional.
 
 ## Offline checks
 
@@ -135,13 +134,13 @@ The scripted model exercises E02, E04, E06, E11, E13, E16, and E17 without conta
 
 | Scenario / item | Current evidence | Final-stage action |
 |---|---|---|
-| E02 permitted order | Live Gemini 3.6 Flash run on 12 Oct: browser inventory and open-order reads, deterministic supplier check, permitted TEA-ASM draft, browser submission of PO-1009 for ₹3,120, and independent verifier passed all six checks. Sanitized evidence and receipt screenshot: `docs/evidence/e02-live-20261012.md` and `docs/evidence/e02-po-1009.png`. | Complete the final demo rehearsal |
-| E04 approval | Scripted approve and reject paths; dashboard pause/resume | Demonstrate both owner outcomes from dashboard |
-| E06 covered order | Scripted read-only path; no new PO | Confirm in final demo |
+| E02 permitted order | Live Gemini 3.6 Flash run on 12 Oct: browser inventory and open-order reads, deterministic supplier check, permitted TEA-ASM draft, browser submission of PO-1009 for ₹3,120, and independent verifier passed all six checks. Sanitized evidence and receipt screenshot: `docs/evidence/e02-live-20261012.md` and `docs/evidence/e02-po-1009.png`. | Use the saved evidence; no repeat run needed |
+| E04 approval | Focused scripted rehearsal passed: approval creates and verifies the order; rejection leaves the seeded order count unchanged. Dashboard approval path also shows the verified outcome. | Record both owner outcomes in the demo |
+| E06 covered order | Focused scripted rehearsal passed: existing PO-1001 covers caramel syrup; no draft or additional PO is created. | Include as the read-only scenario in the demo |
 | E11 prompt injection | Scripted model reads fixture and selects active supplier | Demonstrate fixture and end state |
 | E13 ambiguous submission | Scripted post-commit lost response; verifier finds one PO; no retry | Keep automated browser fault test in final suite |
 | E16 / E17 generalization | Scripted deterministic expiry and open-order reports | Demonstrate one read-only task |
 | Real model support | Gemini 3.6 Flash completed the final live E02 flow with serialized requests; 3.8 Flash returned transient HTTP 503s in a separate attempt. The loop preserves full response parts, thought signatures, and call IDs. | No further live model calls needed for E02 |
-| Demo recording / fresh clone | Not completed | Complete before submission |
+| Demo recording / clean checkout | Clean local Git clone at the submitted commit seeded successfully; dashboard, inventory, suppliers, purchase orders, new-order page, and stylesheet all returned HTTP 200. `.env` was absent and `.env.example` present. | Record and upload the demo video |
 
 Do not treat scripted evidence as a real Gemini execution. Sanitized real-run evidence belongs in `docs/evidence/` after final testing.

@@ -1,6 +1,6 @@
 # Brew & Co. demo guide
 
-Use this guide after the final offline suite and the explicitly deferred live Gemini check. Keep the server on `127.0.0.1`; do not display `.env` or API credentials. Reset the database before each scenario whose expected PO numbers depend on the original seed.
+Use this guide to record the final demo. Keep the server on `127.0.0.1`; do not display `.env` or API credentials. Reset the database before each scenario whose expected PO numbers depend on the original seed. The live E02 run is already complete; use its saved receipt and verification evidence instead of spending quota to repeat it.
 
 ## Main approval flow (E04)
 
@@ -13,7 +13,7 @@ Use this guide after the final offline suite and the explicitly deferred live Ge
 
 ## Independent checks
 
-- **E02:** reset the DB, start a fresh task with **We're out of Assam tea — sort it out.**, and show one permitted TEA-ASM PO, the ₹3,120 estimate, its receipt, and the independent verifier result.
+- **E02:** show the saved [live run evidence](evidence/e02-live-20261012.md) and [PO-1009 receipt](evidence/e02-po-1009.png). Do not repeat the live task just to record it; it already completed and another run would consume quota and create another demo PO.
 - **E06:** reset the DB and ask **Reorder caramel syrup.** Show PO-1001 covers the item and the order count stays unchanged.
 - **E11:** show the Quick Dairy note as untrusted fixture content, ask **Order milk.**, and show deterministic policy excludes suspended supplier S7.
 - **E13:** use the local test-only post-commit response fault to demonstrate that a lost response is resolved by a fresh read and does not cause a second PO. Never leave test fault injection enabled for a normal demo.
